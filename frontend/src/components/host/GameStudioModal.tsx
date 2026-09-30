@@ -94,11 +94,29 @@ export const GameStudioModal: React.FC<GameStudioModalProps> = ({
           if (parsed.secretMedia.imageUrl) setImageUrl(parsed.secretMedia.imageUrl);
           if (parsed.secretMedia.hint) setHint(parsed.secretMedia.hint);
         }
-        if (Array.isArray(parsed.questions) && parsed.questions.length === 16) {
+        const isValidQuestion = (q: any): q is Question => {
+          return (
+            q &&
+            typeof q.text === 'string' &&
+            q.text.trim().length > 0 &&
+            Array.isArray(q.options) &&
+            q.options.length === 4 &&
+            q.options.every((opt: any) => typeof opt === 'string' && opt.trim().length > 0) &&
+            typeof q.correctIndex === 'number' &&
+            q.correctIndex >= 0 &&
+            q.correctIndex <= 3
+          );
+        };
+
+        if (
+          Array.isArray(parsed.questions) &&
+          parsed.questions.length === 16 &&
+          parsed.questions.every(isValidQuestion)
+        ) {
           setQuestions(parsed.questions);
           setErrorMsg(null);
         } else {
-          setErrorMsg('File JSON phải chứa chính xác mảng 16 câu hỏi!');
+          setErrorMsg('File JSON không hợp lệ! Phải chứa chính xác 16 câu hỏi với đầy đủ text, 4 đáp án và correctIndex từ 0 đến 3.');
         }
       } catch (err: any) {
         setErrorMsg('Lỗi định dạng JSON: ' + err.message);

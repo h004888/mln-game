@@ -22,8 +22,18 @@ module.exports = {
       animation: {
         'pulse-glow': 'pulseGlow 1.5s infinite alternate',
         'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+        'fadeIn': 'fadeIn 0.3s ease-out forwards',
+        'scaleUp': 'scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
       },
       keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'scale(0.98)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        scaleUp: {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
         pulseGlow: {
           '0%': { transform: 'scale(1)', boxShadow: '0 0 15px rgba(255, 51, 102, 0.5)' },
           '100%': { transform: 'scale(1.05)', boxShadow: '0 0 35px rgba(255, 51, 102, 0.9)' },

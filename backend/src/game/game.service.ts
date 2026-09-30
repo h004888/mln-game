@@ -209,6 +209,9 @@ export class GameService {
       if (player.hasCooldown) {
         player.hasCooldown = false; // Gỡ cooldown sau 1 lượt
       }
+      if (player.isFrozen > 0) {
+        player.isFrozen -= 1; // Giảm 1 lượt đóng băng
+      }
     });
 
     this.room.activePlayerId = null;
@@ -218,6 +221,17 @@ export class GameService {
     this.room.status = GameStateMachine.transition(this.room.status, GameState.BUZZER_OPEN);
 
     return { success: true, status: this.room.status };
+  }
+
+  /**
+   * Reset trạng thái chuông về Intermission
+   */
+  resetBuzzer(): { success: boolean } {
+    this.room.activePlayerId = null;
+    this.room.currentCardId = null;
+    this.isStealRound = false;
+    this.room.status = GameState.INTERMISSION;
+    return { success: true };
   }
 
   /**
@@ -406,6 +420,14 @@ export class GameService {
     if (allOpened && this.room.status !== GameState.GAME_OVER) {
       this.room.status = GameState.FINAL_SHOWDOWN;
     }
+  }
+
+  /**
+   * Host ép buộc kết thúc hoặc công bố người cao điểm nhất
+   */
+  forceEnd(): { success: boolean; winner: Player | null } {
+    const res = this.forceEndGame();
+    return { success: true, winner: res.winner };
   }
 
   /**

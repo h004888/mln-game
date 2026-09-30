@@ -25,7 +25,17 @@ describe('QuestionsService', () => {
     expect(media.imageUrl).toBeDefined();
   });
 
-  it('should validate question structure properly', () => {
+  it('should return a deep copy of default questions so mutations do not affect service state', () => {
+    const questions1 = service.getDefaultQuestions();
+    questions1[0].text = 'MUTATED_TEXT';
+    questions1[0].options[0] = 'MUTATED_OPTION';
+
+    const questions2 = service.getDefaultQuestions();
+    expect(questions2[0].text).not.toBe('MUTATED_TEXT');
+    expect(questions2[0].options[0]).not.toBe('MUTATED_OPTION');
+  });
+
+  it('should validate question structure properly and reject whitespace-only fields', () => {
     const valid = service.validateQuestion({
       id: 'test-1',
       text: 'Câu hỏi test?',
@@ -36,18 +46,35 @@ describe('QuestionsService', () => {
 
     const invalid = service.validateQuestion({
       id: 'test-2',
-      text: '',
+      text: '   ',
       options: ['A', 'B'],
       correctIndex: 5,
     });
     expect(invalid).toBe(false);
+
+    const invalidOptions = service.validateQuestion({
+      id: 'test-3',
+      text: 'Câu hỏi?',
+      options: ['A', '   ', 'C', 'D'],
+      correctIndex: 0,
+    });
+    expect(invalidOptions).toBe(false);
   });
 
-  it('should update secret keyword and image', () => {
-    service.updateSecretMedia('Phố cổ Hội An', '/images/hoi_an.jpg');
-    const media = service.getSecretMedia();
-    expect(media.keyword).toBe('Phố cổ Hội An');
-    expect(media.imageUrl).toBe('/images/hoi_an.jpg');
+  it('should reject whitespace-only secret media keyword or image url', () => {
+    expect(
+      service.validateCustomGameConfig({
+        secretMedia: { keyword: '   ', imageUrl: 'https://example.com/img.jpg' },
+        questions: service.getDefaultQuestions(),
+      }),
+    ).toBe(false);
+
+    expect(
+      service.validateCustomGameConfig({
+        secretMedia: { keyword: 'Chùa Một Cột', imageUrl: '   ' },
+        questions: service.getDefaultQuestions(),
+      }),
+    ).toBe(false);
   });
 
   it('should validate and set custom game config with 16 questions and secret media', () => {
@@ -81,4 +108,3 @@ describe('QuestionsService', () => {
     expect(service.validateCustomGameConfig(invalidConfig)).toBe(false);
   });
 });
-

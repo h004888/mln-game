@@ -44,6 +44,15 @@ export class ScoringEngine {
   static checkUltimateGuess(guess: string, secretKeyword: string): boolean {
     const normGuess = this.normalizeText(guess);
     const normSecret = this.normalizeText(secretKeyword);
-    return normGuess === normSecret || normGuess.includes(normSecret) || normSecret.includes(normGuess);
+
+    if (!normGuess || !normSecret || normGuess.length < 2 || normSecret.length < 2) {
+      return false;
+    }
+
+    return (
+      normGuess === normSecret ||
+      normGuess.includes(normSecret) ||
+      (normGuess.length >= normSecret.length && normGuess.includes(normSecret))
+    );
   }
 }

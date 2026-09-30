@@ -17,10 +17,19 @@ export const HostActionToolbar: React.FC<HostActionToolbarProps> = ({
   onResetBuzzer,
   onForceEnd,
 }) => {
-  // Shortcut: Nhấn Spacebar để mở chuông nhanh
+  // Shortcut: Nhấn Spacebar để mở chuông nhanh (chỉ khi không ở trong ô soạn thảo và không lặp phím)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && (e.target as HTMLElement).tagName !== 'INPUT') {
+      if (e.repeat) return;
+      const target = e.target as HTMLElement | null;
+      const tagName = target?.tagName;
+      const isEditable =
+        tagName === 'INPUT' ||
+        tagName === 'TEXTAREA' ||
+        tagName === 'SELECT' ||
+        target?.isContentEditable;
+
+      if (e.code === 'Space' && !isEditable) {
         e.preventDefault();
         onOpenBuzzer();
       }

@@ -16,7 +16,9 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --only=production
 
-COPY --from=builder /app/dist ./dist
+COPY --from=builder --chown=node:node /app/dist ./dist
+
+USER node
 
 EXPOSE 3001
 CMD ["node", "dist/main.js"]

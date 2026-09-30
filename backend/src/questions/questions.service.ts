@@ -30,7 +30,10 @@ export class QuestionsService {
   ];
 
   getDefaultQuestions(): Question[] {
-    return [...this.defaultQuestions];
+    return this.defaultQuestions.map((q) => ({
+      ...q,
+      options: [...q.options],
+    }));
   }
 
   getSecretMedia(): SecretMedia {
@@ -38,9 +41,9 @@ export class QuestionsService {
   }
 
   updateSecretMedia(keyword: string, imageUrl: string, hint?: string) {
-    if (keyword) this.secretMedia.keyword = keyword.trim();
-    if (imageUrl) this.secretMedia.imageUrl = imageUrl.trim();
-    if (hint) this.secretMedia.hint = hint.trim();
+    if (keyword && keyword.trim()) this.secretMedia.keyword = keyword.trim();
+    if (imageUrl && imageUrl.trim()) this.secretMedia.imageUrl = imageUrl.trim();
+    if (hint && hint.trim()) this.secretMedia.hint = hint.trim();
   }
 
   validateQuestion(q: Partial<Question>): boolean {
@@ -48,6 +51,9 @@ export class QuestionsService {
       return false;
     }
     if (!Array.isArray(q.options) || q.options.length !== 4) {
+      return false;
+    }
+    if (q.options.some((opt) => typeof opt !== 'string' || opt.trim().length === 0)) {
       return false;
     }
     if (typeof q.correctIndex !== 'number' || q.correctIndex < 0 || q.correctIndex > 3) {
@@ -60,7 +66,13 @@ export class QuestionsService {
     if (!config || typeof config !== 'object') {
       return false;
     }
-    if (!config.secretMedia || !config.secretMedia.keyword || !config.secretMedia.imageUrl) {
+    if (
+      !config.secretMedia ||
+      typeof config.secretMedia.keyword !== 'string' ||
+      config.secretMedia.keyword.trim().length === 0 ||
+      typeof config.secretMedia.imageUrl !== 'string' ||
+      config.secretMedia.imageUrl.trim().length === 0
+    ) {
       return false;
     }
     if (!Array.isArray(config.questions) || config.questions.length !== 16) {
@@ -76,6 +88,7 @@ export class QuestionsService {
     this.updateSecretMedia(config.secretMedia.keyword, config.secretMedia.imageUrl, config.secretMedia.hint);
     this.defaultQuestions = config.questions.map((q, idx) => ({
       ...q,
+      options: [...q.options],
       id: q.id || `custom-q-${idx + 1}`,
     }));
   }

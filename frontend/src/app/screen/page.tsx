@@ -15,7 +15,8 @@ export default function ProjectorScreenPage() {
 
   const currentCard = room?.cards.find((c) => c.id === room?.currentCardId);
   const activePlayer = room?.activePlayerId ? room.players[room.activePlayerId] : null;
-  const isQuestionActive = room?.status === GameState.QUESTION_ACTIVE && currentCard;
+  const isQuestionActive =
+    (room?.status === GameState.QUESTION_ACTIVE || room?.status === GameState.STEAL_OPEN) && currentCard;
   const isGameOver = room?.status === GameState.GAME_OVER;
   const totalPlayers = Object.values(room?.players || {}).filter((p) => p.role === PlayerRole.PLAYER).length;
 

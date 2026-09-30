@@ -56,7 +56,7 @@ export const HostLoginModal: React.FC<HostLoginModalProps> = ({
               required
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="Nhập mã PIN MC (mặc định 8888)..."
+              placeholder="Nhập mã PIN MC..."
               className="w-full pl-12 pr-4 py-4 bg-gray-950/90 border border-gray-700 rounded-2xl text-white font-mono text-center text-lg tracking-widest placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>

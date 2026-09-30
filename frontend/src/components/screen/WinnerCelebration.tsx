@@ -16,7 +16,7 @@ export const WinnerCelebration: React.FC<WinnerCelebrationProps> = ({
   secretImageUrl,
 }) => {
   useEffect(() => {
-    // Launch fireworks
+    let rafId: number | undefined;
     const duration = 5 * 1000;
     const end = Date.now() + duration;
 
@@ -35,10 +35,19 @@ export const WinnerCelebration: React.FC<WinnerCelebrationProps> = ({
       });
 
       if (Date.now() < end) {
-        requestAnimationFrame(frame);
+        rafId = requestAnimationFrame(frame);
       }
     };
-    frame();
+    rafId = requestAnimationFrame(frame);
+
+    return () => {
+      if (rafId !== undefined) {
+        cancelAnimationFrame(rafId);
+      }
+      if (typeof confetti.reset === 'function') {
+        confetti.reset();
+      }
+    };
   }, []);
 
   return (

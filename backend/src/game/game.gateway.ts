@@ -11,6 +11,10 @@ import { Server, Socket } from 'socket.io';
 import { GameService } from './game.service';
 import { GameState, PlayerRole } from './game.types';
 import { TimerManager } from './timer-manager';
+import {
+  sanitizeRoomForPlayer,
+  sanitizeRoomForHost,
+} from './game-sanitizer';
 
 @WebSocketGateway({
   cors: {
@@ -27,8 +31,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(private readonly gameService: GameService) {}
 
   handleConnection(client: Socket) {
-    // Gửi trạng thái phòng hiện tại cho client mới kết nối
-    client.emit('room:state', this.gameService.getRoom());
+    // Gửi trạng thái phòng đã sanitize an toàn cho client mới kết nối
+    client.emit('room:state', sanitizeRoomForPlayer(this.gameService.getRoom()));
   }
 
   handleDisconnect(client: Socket) {
@@ -38,7 +42,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private broadcastRoomState() {
     if (this.server) {
-      this.server.emit('room:updated', this.gameService.getRoom());
+      const room = this.gameService.getRoom();
+      // Mặc định phát tán trạng thái an toàn không lộ đáp án cho toàn bộ người chơi/màn hình
+      this.server.emit('room:updated', sanitizeRoomForPlayer(room));
+      // Riêng phòng MC/Host nhận trạng thái đầy đủ phục vụ điều khiển
+      if (typeof this.server.to === 'function') {
+        this.server.to('host-room').emit('room:updated', sanitizeRoomForHost(room));
+      }
     }
   }
 
@@ -73,7 +83,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const isSuccess = this.gameService.authenticateHost(client.id, data?.pin || '');
     if (isSuccess) {
+      if (typeof client.join === 'function') {
+        client.join('host-room');
+      }
       client.emit('host:auth_result', { success: true });
+      client.emit('room:state', sanitizeRoomForHost(this.gameService.getRoom()));
     } else {
       client.emit('host:auth_result', { success: false, message: 'Invalid Host PIN' });
     }
@@ -124,12 +138,16 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
           }
         },
         () => {
-          // Timeout chọn ô -> phạt và chuyển lượt
-          this.gameService.handleTimeout();
-          if (this.server) {
-            this.server.emit('timer:expired', { reason: 'Timeout selecting card' });
+          try {
+            // Timeout chọn ô -> phạt và chuyển lượt
+            this.gameService.handleTimeout();
+            if (this.server) {
+              this.server.emit('timer:expired', { reason: 'Timeout selecting card' });
+            }
+            this.broadcastRoomState();
+          } catch (err) {
+            console.error('Error on select card timeout', err);
           }
-          this.broadcastRoomState();
         },
       );
     } else {
@@ -143,8 +161,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { cardIndex: number },
   ) {
     try {
-      this.timerManager.clear();
       const card = this.gameService.selectCard(client.id, data.cardIndex);
+      this.timerManager.clear();
       this.broadcastRoomState();
 
       // Bắt đầu đếm ngược 15 giây trả lời câu hỏi trắc nghiệm
@@ -157,12 +175,17 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
           }
         },
         () => {
-          // Timeout trả lời câu hỏi -> phạt và chuyển lượt cướp
-          this.gameService.submitAnswer(client.id, -1); // chọn sai
-          if (this.server) {
-            this.server.emit('timer:expired', { reason: 'Timeout answering question' });
+          try {
+            // Timeout trả lời câu hỏi -> phạt và chuyển lượt cướp
+            const result = this.gameService.submitAnswer(client.id, -1);
+            if (this.server) {
+              this.server.emit('question:result', result);
+              this.server.emit('timer:expired', { reason: 'Timeout answering question' });
+            }
+            this.broadcastRoomState();
+          } catch (err) {
+            console.error('Error on answer timeout', err);
           }
-          this.broadcastRoomState();
         },
       );
     } catch (err: any) {
@@ -176,8 +199,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { selectedIndex: number },
   ) {
     try {
-      this.timerManager.clear();
+      if (typeof data?.selectedIndex !== 'number') {
+        throw new Error('Invalid selectedIndex');
+      }
       const result = this.gameService.submitAnswer(client.id, data.selectedIndex);
+      this.timerManager.clear();
       if (this.server) {
         this.server.emit('question:result', result);
       }
@@ -207,8 +233,16 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
           }
         },
         () => {
-          this.gameService.submitAnswer(client.id, -1);
-          this.broadcastRoomState();
+          try {
+            const result = this.gameService.submitAnswer(client.id, -1);
+            if (this.server) {
+              this.server.emit('question:result', result);
+              this.server.emit('timer:expired', { reason: 'Timeout answering steal question' });
+            }
+            this.broadcastRoomState();
+          } catch (err) {
+            console.error('Error on steal timeout', err);
+          }
         },
       );
     } else {
@@ -259,19 +293,20 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleResetBuzzer(@ConnectedSocket() client: Socket) {
     if (!this.checkHostAuth(client)) return;
     this.timerManager.clear();
-    this.gameService.openBuzzer();
-    this.broadcastRoomState();
+    const result = this.gameService.resetBuzzer();
+    if (result.success) {
+      this.broadcastRoomState();
+    }
   }
 
   @SubscribeMessage('host:force_end')
   handleForceEnd(@ConnectedSocket() client: Socket) {
     if (!this.checkHostAuth(client)) return;
     this.timerManager.clear();
-    const result = this.gameService.forceEndGame();
-    if (this.server) {
-      this.server.emit('game:ended', result);
+    const result = this.gameService.forceEnd();
+    if (result.success) {
+      this.broadcastRoomState();
     }
-    this.broadcastRoomState();
   }
 
   @SubscribeMessage('host:reset_game')
@@ -288,9 +323,13 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: any,
   ) {
     if (!this.checkHostAuth(client)) return;
-    this.timerManager.clear();
-    this.gameService.resetRoomWithConfig(data);
-    this.broadcastRoomState();
-    client.emit('host:custom_game_created', { success: true });
+    try {
+      this.timerManager.clear();
+      this.gameService.resetRoomWithConfig(data);
+      this.broadcastRoomState();
+      client.emit('host:custom_game_created', { success: true });
+    } catch (err: any) {
+      client.emit('error', { message: 'Lỗi cấu hình game: ' + err.message });
+    }
   }
 }

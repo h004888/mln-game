@@ -16,31 +16,34 @@ body {
   overflow-x: hidden;
 }
 
-/* Glassmorphism helpers */
-.glass-panel {
-  background: rgba(19, 24, 35, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-}
+@layer components {
+  /* Glassmorphism helpers */
+  .glass-panel {
+    background: rgba(19, 24, 35, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  }
 
-.glass-card {
-  background: rgba(25, 32, 48, 0.6);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
+  .glass-card {
+    background: rgba(25, 32, 48, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
 
-.neon-glow-cyan {
-  box-shadow: 0 0 20px rgba(0, 245, 255, 0.4);
-}
+  .neon-glow-cyan {
+    box-shadow: 0 0 20px rgba(0, 245, 255, 0.4);
+  }
 
-.neon-glow-red {
-  box-shadow: 0 0 25px rgba(255, 51, 102, 0.6);
-}
+  .neon-glow-red {
+    box-shadow: 0 0 25px rgba(255, 51, 102, 0.6);
+  }
 
-.neon-glow-gold {
-  box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+  .neon-glow-gold {
+    box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+  }
 }
 
 /* Custom Scrollbar */

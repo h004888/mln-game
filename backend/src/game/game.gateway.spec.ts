@@ -20,6 +20,7 @@ describe('GameGateway', () => {
     gateway = module.get<GameGateway>(GameGateway);
     service = module.get<GameService>(GameService);
     gateway.server = mockServer as any;
+    jest.clearAllMocks();
   });
 
   afterEach(() => {
@@ -103,5 +104,22 @@ describe('GameGateway', () => {
     expect(service.getRoom().status).toBe(GameState.BUZZER_OPEN);
     expect(mockServer.emit).toHaveBeenCalledWith('buzzer:opened', expect.any(Object));
   });
-});
 
+  it('should NOT clear active timer if unauthorized socket calls selectCard or submitAnswer', () => {
+    service.joinRoom('p1', PlayerRole.PLAYER, 'Player 1');
+    service.joinRoom('p2', PlayerRole.PLAYER, 'Player 2');
+    service.openBuzzer();
+    service.claimBuzz('p1'); // p1 is active player
+
+    // Start select timer
+    const timerSpy = jest.spyOn((gateway as any).timerManager, 'clear');
+    
+    // p2 attempts to select card -> unauthorized
+    const unauthorizedSocket = { id: 'p2', emit: jest.fn() } as any;
+    gateway.handleSelectCard(unauthorizedSocket, { cardIndex: 1 });
+
+    expect(unauthorizedSocket.emit).toHaveBeenCalledWith('error', expect.any(Object));
+    // Timer should NOT be cleared by unauthorized client
+    expect(timerSpy).not.toHaveBeenCalled();
+  });
+});

@@ -8,7 +8,7 @@ import { CardPickerModal } from '../components/player/CardPickerModal';
 import { AnswerButtons } from '../components/player/AnswerButtons';
 import { UltimateGuessModal } from '../components/player/UltimateGuessModal';
 import { soundEffects } from '../utils/soundEffects';
-import { Flame, Trophy, User, Zap, AlertCircle, LogOut } from 'lucide-react';
+import { Flame, Trophy, User, Zap, AlertCircle, LogOut, Radio } from 'lucide-react';
 
 export default function PlayerPage() {
   const [playerName, setPlayerName] = useState('');
@@ -17,6 +17,7 @@ export default function PlayerPage() {
   const {
     room,
     me,
+    isRestoringSession,
     timerRemaining,
     alertMessage,
     joinGame,
@@ -52,13 +53,42 @@ export default function PlayerPage() {
     }
   };
 
+  // Screen 0: Session Restoring Loading Screen (Loại bỏ 100% hiện tượng chớp nháy khi F5 reload)
+  if (isRestoringSession && !me) {
+    return (
+      <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-[#0a0d14] via-[#101726] to-[#0a0d14]">
+        <div className="glass-panel p-8 rounded-3xl max-w-sm w-full space-y-6 text-center shadow-2xl border border-gray-800 animate-fadeIn">
+          <div className="w-16 h-16 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-2xl mx-auto flex items-center justify-center shadow-lg relative">
+            <Radio className="w-9 h-9 text-white animate-pulse" />
+            <div className="absolute -inset-1 rounded-2xl bg-cyan-500/30 blur animate-pulse" />
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-xl font-black text-white tracking-wide uppercase">
+              ĐANG KẾT NỐI LẠI PHÒNG ĐẤU...
+            </h2>
+            <p className="text-xs text-cyan-400 font-medium animate-pulse">
+              Đang đồng bộ phiên chơi của bạn với máy chủ
+            </p>
+          </div>
+
+          <div className="flex items-center justify-center gap-1.5 pt-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-game-neonCyan animate-bounce [animation-delay:-0.3s]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-game-neonCyan animate-bounce [animation-delay:-0.15s]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-game-neonCyan animate-bounce" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   const isRegistered = !!me;
 
-  // Screen 1: Name Input Screen
+  // Screen 1: Name Input Screen (Chỉ hiển thị khi không có session cũ hoặc session hết hạn)
   if (!isRegistered) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-[#0a0d14] via-[#101726] to-[#0a0d14]">
-        <div className="glass-panel p-8 rounded-3xl max-w-sm w-full space-y-6 text-center shadow-2xl border border-gray-800">
+        <div className="glass-panel p-8 rounded-3xl max-w-sm w-full space-y-6 text-center shadow-2xl border border-gray-800 animate-fadeIn">
           <div className="w-16 h-16 bg-gradient-to-tr from-game-neonPink to-game-neonCyan rounded-2xl mx-auto flex items-center justify-center shadow-lg transform -rotate-6">
             <Zap className="w-9 h-9 text-white" />
           </div>
@@ -105,7 +135,7 @@ export default function PlayerPage() {
   const isStealOpen = room?.status === GameState.STEAL_OPEN;
 
   return (
-    <main className="min-h-screen flex flex-col justify-between p-4 max-w-lg mx-auto select-none">
+    <main className="min-h-screen flex flex-col justify-between p-4 max-w-lg mx-auto select-none animate-fadeIn">
       {/* Top Header: Player Info & Score & Leave */}
       <header className="glass-panel p-3.5 rounded-2xl flex items-center justify-between border border-gray-800">
         <div className="flex items-center gap-2.5">

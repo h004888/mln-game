@@ -21,12 +21,59 @@ describe('useSocket hook - Reconnection & Host Auth', () => {
     localStorage.clear();
   });
 
+  it('should set isRestoringSession to true initially when sessionId exists in localStorage', () => {
+    localStorage.setItem('mln_player_session', 'session_abc_123');
+
+    const { result } = renderHook(() => useSocket(PlayerRole.PLAYER, ''));
+    expect(result.current.isRestoringSession).toBe(true);
+
+    const reconnectedCallback = mockSocket.on.mock.calls.find((call) => call[0] === 'player:reconnected')?.[1];
+    expect(reconnectedCallback).toBeDefined();
+
+    act(() => {
+      reconnectedCallback({
+        id: 'socket-test-1',
+        sessionId: 'session_abc_123',
+        name: 'Player Reconnected',
+        score: 100,
+        isFrozen: 0,
+        hasCooldown: false,
+        role: PlayerRole.PLAYER,
+        connected: true,
+      });
+    });
+
+    expect(result.current.isRestoringSession).toBe(false);
+    expect(result.current.me?.name).toBe('Player Reconnected');
+  });
+
+  it('should set isRestoringSession to false if no sessionId exists in localStorage', () => {
+    const { result } = renderHook(() => useSocket(PlayerRole.PLAYER, ''));
+    expect(result.current.isRestoringSession).toBe(false);
+  });
+
+  it('should set isRestoringSession to false on session:invalid', () => {
+    localStorage.setItem('mln_player_session', 'session_invalid');
+    const { result } = renderHook(() => useSocket(PlayerRole.PLAYER, ''));
+    expect(result.current.isRestoringSession).toBe(true);
+
+    const invalidCallback = mockSocket.on.mock.calls.find((call) => call[0] === 'session:invalid')?.[1];
+    expect(invalidCallback).toBeDefined();
+
+    act(() => {
+      invalidCallback({ message: 'Session expired' });
+    });
+
+    expect(result.current.isRestoringSession).toBe(false);
+    expect(localStorage.getItem('mln_player_session')).toBeNull();
+    expect(result.current.me).toBeNull();
+  });
+
   it('should auto-reconnect if sessionId exists in localStorage', () => {
     localStorage.setItem('mln_player_session', 'session_abc_123');
 
     renderHook(() => useSocket(PlayerRole.PLAYER, ''));
 
-    // Find the 'connect' callback
     const connectCallback = mockSocket.on.mock.calls.find((call) => call[0] === 'connect')?.[1];
     expect(connectCallback).toBeDefined();
 
@@ -58,21 +105,7 @@ describe('useSocket hook - Reconnection & Host Auth', () => {
 
     expect(localStorage.getItem('mln_player_session')).toBe('session_xyz_789');
     expect(result.current.me?.name).toBe('Player X');
-  });
-
-  it('should remove sessionId from localStorage on session:invalid', () => {
-    localStorage.setItem('mln_player_session', 'session_invalid');
-    const { result } = renderHook(() => useSocket(PlayerRole.PLAYER, ''));
-
-    const invalidCallback = mockSocket.on.mock.calls.find((call) => call[0] === 'session:invalid')?.[1];
-    expect(invalidCallback).toBeDefined();
-
-    act(() => {
-      invalidCallback({ message: 'Session expired' });
-    });
-
-    expect(localStorage.getItem('mln_player_session')).toBeNull();
-    expect(result.current.me).toBeNull();
+    expect(result.current.isRestoringSession).toBe(false);
   });
 
   it('should support leaveGame by clearing storage, resetting me, and reconnecting', () => {
@@ -85,7 +118,7 @@ describe('useSocket hook - Reconnection & Host Auth', () => {
 
     expect(localStorage.getItem('mln_player_session')).toBeNull();
     expect(result.current.me).toBeNull();
+    expect(result.current.isRestoringSession).toBe(false);
     expect(mockSocket.disconnect).toHaveBeenCalled();
   });
 });
-

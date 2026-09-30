@@ -23,6 +23,12 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
   const [isConnected, setIsConnected] = useState(false);
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [me, setMe] = useState<Player | null>(null);
+  const [isRestoringSession, setIsRestoringSession] = useState(() => {
+    if (typeof window !== 'undefined' && role === PlayerRole.PLAYER) {
+      return !!localStorage.getItem('mln_player_session');
+    }
+    return false;
+  });
   const [isHostAuthenticated, setIsHostAuthenticated] = useState(false);
   const [hostAuthError, setHostAuthError] = useState<string | null>(null);
   const [timerRemaining, setTimerRemaining] = useState<number | null>(null);
@@ -46,6 +52,8 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
           socket.emit('player:reconnect', { sessionId: savedSession });
         } else if (initialName) {
           socket.emit('player:join', { role, name: initialName });
+        } else {
+          setIsRestoringSession(false);
         }
       } else {
         socket.emit('player:join', { role, name: initialName });
@@ -56,10 +64,16 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
       setIsConnected(false);
     });
 
+    socket.on('connect_error', () => {
+      // Nếu kết nối lỗi, không treo trạng thái restoring mãi
+      setIsRestoringSession(false);
+    });
+
     socket.on('room:state', (updatedRoom: GameRoom) => {
       setRoom(updatedRoom);
       if (socket.id && updatedRoom.players[socket.id]) {
         setMe(updatedRoom.players[socket.id]);
+        setIsRestoringSession(false);
       }
     });
 
@@ -67,11 +81,13 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
       setRoom(updatedRoom);
       if (socket.id && updatedRoom.players[socket.id]) {
         setMe(updatedRoom.players[socket.id]);
+        setIsRestoringSession(false);
       }
     });
 
     socket.on('player:joined', (player: Player) => {
       setMe(player);
+      setIsRestoringSession(false);
       if (player.sessionId && typeof window !== 'undefined') {
         localStorage.setItem('mln_player_session', player.sessionId);
       }
@@ -79,6 +95,7 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
 
     socket.on('player:reconnected', (player: Player) => {
       setMe(player);
+      setIsRestoringSession(false);
       if (player.sessionId && typeof window !== 'undefined') {
         localStorage.setItem('mln_player_session', player.sessionId);
       }
@@ -86,6 +103,7 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
 
     socket.on('session:invalid', (data: { message?: string }) => {
       setMe(null);
+      setIsRestoringSession(false);
       if (typeof window !== 'undefined') {
         localStorage.removeItem('mln_player_session');
       }
@@ -121,11 +139,6 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
       setTimeout(() => setAlertMessage(null), 3000);
     });
 
-    socket.on('buzzer:rejected', (data: { reason: string }) => {
-      setAlertMessage(`❌ Chuông bị từ chối: ${data.reason}`);
-      setTimeout(() => setAlertMessage(null), 3000);
-    });
-
     return () => {
       socket.disconnect();
     };
@@ -133,7 +146,20 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
 
   const joinGame = (name: string) => {
     if (socketRef.current) {
-      socketRef.current.emit('player:join', { role, name });
+      socketRef.current.emit('player:join', { role: PlayerRole.PLAYER, name });
+    }
+  };
+
+  const leaveGame = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('mln_player_session');
+      localStorage.removeItem('mln_saved_name');
+    }
+    setMe(null);
+    setIsRestoringSession(false);
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current.connect();
     }
   };
 
@@ -174,47 +200,44 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
   };
 
   const hostOpenBuzzer = () => {
-    if (socketRef.current) socketRef.current.emit('host:open_buzzer');
+    if (socketRef.current) {
+      socketRef.current.emit('host:open_buzzer');
+    }
   };
 
   const hostResetBuzzer = () => {
-    if (socketRef.current) socketRef.current.emit('host:reset_buzzer');
+    if (socketRef.current) {
+      socketRef.current.emit('host:reset_buzzer');
+    }
   };
 
   const hostReviewUltimateGuess = (isApproved: boolean) => {
-    if (socketRef.current) socketRef.current.emit('host:review_ultimate_guess', { isApproved });
+    if (socketRef.current) {
+      socketRef.current.emit('host:review_ultimate_guess', { isApproved });
+    }
   };
 
   const hostForceEnd = () => {
-    if (socketRef.current) socketRef.current.emit('host:force_end');
+    if (socketRef.current) {
+      socketRef.current.emit('host:force_end');
+    }
   };
 
   const hostResetGame = () => {
-    if (socketRef.current) socketRef.current.emit('host:reset_game');
-  };
-
-  const leaveGame = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('mln_player_session');
-    }
-    setMe(null);
     if (socketRef.current) {
-      if (typeof socketRef.current.disconnect === 'function') {
-        socketRef.current.disconnect();
-      }
-      if (typeof socketRef.current.connect === 'function') {
-        socketRef.current.connect();
-      }
+      socketRef.current.emit('host:reset_game');
     }
   };
 
   const createCustomGame = (config: any) => {
-    if (socketRef.current) socketRef.current.emit('host:create_custom_game', config);
+    if (socketRef.current) {
+      socketRef.current.emit('host:create_custom_game', config);
+    }
   };
 
   return {
-    socket: socketRef.current,
     isConnected,
+    isRestoringSession,
     room,
     me,
     isHostAuthenticated,

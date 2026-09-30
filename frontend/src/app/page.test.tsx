@@ -3,12 +3,15 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import PlayerPage from './page';
 
 let mockMe: any = null;
+let mockIsRestoringSession = false;
 const mockJoinGame = jest.fn((name: string) => {
   mockMe = { id: 's1', name, score: 0, isFrozen: 0, hasCooldown: false, role: 'PLAYER', connected: true };
+  mockIsRestoringSession = false;
 });
 
 const mockLeaveGame = jest.fn(() => {
   mockMe = null;
+  mockIsRestoringSession = false;
 });
 
 // Mock useSocket hook
@@ -30,6 +33,7 @@ jest.mock('../hooks/useSocket', () => ({
       totalRounds: 0,
     },
     me: mockMe,
+    isRestoringSession: mockIsRestoringSession,
     timerRemaining: null,
     alertMessage: null,
     joinGame: mockJoinGame,
@@ -45,10 +49,20 @@ jest.mock('../hooks/useSocket', () => ({
 describe('PlayerPage', () => {
   beforeEach(() => {
     mockMe = null;
+    mockIsRestoringSession = false;
     localStorage.clear();
   });
 
-  it('renders the login screen and allows joining', () => {
+  it('renders loading screen when session is restoring and does not flash name input screen', () => {
+    mockIsRestoringSession = true;
+    render(<PlayerPage />);
+
+    expect(screen.getByText(/Đang kết nối lại phòng đấu/i)).toBeInTheDocument();
+    expect(screen.queryByText('BUZZER ARENA')).not.toBeInTheDocument();
+  });
+
+  it('renders the login screen and allows joining when not restoring session', () => {
+    mockIsRestoringSession = false;
     const { rerender } = render(<PlayerPage />);
     expect(screen.getByText('BUZZER ARENA')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Nhập họ tên/i)).toBeInTheDocument();
@@ -82,4 +96,3 @@ describe('PlayerPage', () => {
     expect(screen.getByText('BUZZER ARENA')).toBeInTheDocument();
   });
 });
-

@@ -35,9 +35,7 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
           socket.emit('player:join', { role, name: initialName });
         }
       } else {
-        if (initialName || role !== PlayerRole.PLAYER) {
-          socket.emit('player:join', { role, name: initialName });
-        }
+        socket.emit('player:join', { role, name: initialName });
       }
     });
 

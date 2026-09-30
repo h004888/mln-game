@@ -59,3 +59,21 @@ npm test
 # Chạy kiểm thử tích hợp E2E giả lập 30 socket clients tranh chấp chuông
 npm run test:e2e
 ```
+
+---
+
+## 🐳 Triển khai Docker Production & Dokploy
+
+### 1. Chạy nhanh bằng Docker Compose cục bộ:
+```bash
+# Copy file môi trường mẫu
+cp .env.example .env
+
+# Khởi chạy toàn bộ stack production
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+### 2. Triển khai lên Dokploy (Self-Hosted PaaS):
+Dự án đã sẵn sàng triển khai trên **Dokploy** với cơ chế Compose Stack và Traefik SSL:
+- Tham khảo hướng dẫn chi tiết từng bước tại: [docs/DOKPLOY_DEPLOYMENT_GUIDE.md](file:///c:/Users/ADMIN/Downloads/mln-game/docs/DOKPLOY_DEPLOYMENT_GUIDE.md)
+

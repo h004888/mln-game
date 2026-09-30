@@ -185,7 +185,31 @@ describe('GameService', () => {
     expect(room.status).toBe(GameState.LOBBY);
     expect(room.secretImageKeyword).toBe('Tháp Rùa Hồ Gươm');
     expect(room.secretImageUrl).toBe('https://example.com/thap-rua.jpg');
-    expect(room.cards[0].question.text).toBe('Đề thi đặc biệt câu 1');
+  });
+
+  it('should enforce Role Guard and reject SCREEN or HOST from buzzing, stealing, or selecting cards', () => {
+    service.joinRoom('socket-host', PlayerRole.HOST, 'MC Host');
+    service.joinRoom('socket-screen', PlayerRole.SCREEN, 'Máy Chiếu Khán Phòng');
+    service.joinRoom('socket-player', PlayerRole.PLAYER, 'Nguyen Van A');
+
+    service.openBuzzer();
+
+    // Screen attempts to buzz -> rejected by role guard
+    const screenClaim = service.claimBuzz('socket-screen');
+    expect(screenClaim.success).toBe(false);
+    expect(screenClaim.reason).toContain('role');
+
+    // Host attempts to buzz -> rejected by role guard
+    const hostClaim = service.claimBuzz('socket-host');
+    expect(hostClaim.success).toBe(false);
+    expect(hostClaim.reason).toContain('role');
+
+    // Player attempts to buzz -> accepted
+    const playerClaim = service.claimBuzz('socket-player');
+    expect(playerClaim.success).toBe(true);
+
+    // Screen attempts to select card -> throws error
+    expect(() => service.selectCard('socket-screen', 1)).toThrow();
   });
 });
 

@@ -231,6 +231,9 @@ export class GameService {
     if (!player) {
       return { success: false, reason: 'Player not found' };
     }
+    if (player.role !== PlayerRole.PLAYER) {
+      return { success: false, reason: 'Chỉ người chơi (player role) mới có quyền bấm chuông' };
+    }
     if (player.isFrozen > 0) {
       return { success: false, reason: `Player is frozen for ${player.isFrozen} more rounds` };
     }
@@ -249,6 +252,10 @@ export class GameService {
   selectCard(playerId: string, cardIndex: number): Card {
     if (this.room.status !== GameState.CARD_SELECTION || this.room.activePlayerId !== playerId) {
       throw new Error('Not authorized to select card');
+    }
+    const player = this.room.players[playerId];
+    if (!player || player.role !== PlayerRole.PLAYER) {
+      throw new Error('Not authorized to select card: invalid role');
     }
     const card = this.room.cards.find((c) => c.index === cardIndex);
     if (!card) {
@@ -270,12 +277,14 @@ export class GameService {
     if (this.room.status !== GameState.QUESTION_ACTIVE || this.room.activePlayerId !== playerId) {
       throw new Error('Not authorized to submit answer');
     }
+    const player = this.room.players[playerId];
+    if (!player || player.role !== PlayerRole.PLAYER) {
+      throw new Error('Not authorized to submit answer: invalid role');
+    }
     const card = this.room.cards.find((c) => c.id === this.room.currentCardId);
     if (!card) {
       throw new Error('Current question not found');
     }
-
-    const player = this.room.players[playerId];
     const isCorrect = card.question.correctIndex === selectedIndex;
     let pointsAwarded = 0;
 
@@ -320,8 +329,8 @@ export class GameService {
       return { success: false, reason: 'Steal buzzer is not open' };
     }
     const player = this.room.players[playerId];
-    if (!player || player.isFrozen > 0) {
-      return { success: false, reason: 'Player cannot steal' };
+    if (!player || player.role !== PlayerRole.PLAYER || player.isFrozen > 0) {
+      return { success: false, reason: 'Player cannot steal (invalid role or frozen)' };
     }
 
     this.isStealRound = true;
@@ -348,7 +357,7 @@ export class GameService {
    */
   submitUltimateGuess(playerId: string, keyword: string): { submitted: boolean; autoMatch: boolean } {
     const player = this.room.players[playerId];
-    if (!player || player.isFrozen > 0) {
+    if (!player || player.role !== PlayerRole.PLAYER || player.isFrozen > 0) {
       throw new Error('Player cannot make ultimate guess');
     }
 

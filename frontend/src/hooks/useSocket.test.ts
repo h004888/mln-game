@@ -6,6 +6,7 @@ import { PlayerRole } from '../types/game';
 const mockSocket = {
   on: jest.fn(),
   emit: jest.fn(),
+  connect: jest.fn(),
   disconnect: jest.fn(),
   id: 'socket-test-1',
 };
@@ -73,4 +74,18 @@ describe('useSocket hook - Reconnection & Host Auth', () => {
     expect(localStorage.getItem('mln_player_session')).toBeNull();
     expect(result.current.me).toBeNull();
   });
+
+  it('should support leaveGame by clearing storage, resetting me, and reconnecting', () => {
+    localStorage.setItem('mln_player_session', 'session_test_abc');
+    const { result } = renderHook(() => useSocket(PlayerRole.PLAYER, ''));
+
+    act(() => {
+      result.current.leaveGame();
+    });
+
+    expect(localStorage.getItem('mln_player_session')).toBeNull();
+    expect(result.current.me).toBeNull();
+    expect(mockSocket.disconnect).toHaveBeenCalled();
+  });
 });
+

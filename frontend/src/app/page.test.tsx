@@ -7,6 +7,10 @@ const mockJoinGame = jest.fn((name: string) => {
   mockMe = { id: 's1', name, score: 0, isFrozen: 0, hasCooldown: false, role: 'PLAYER', connected: true };
 });
 
+const mockLeaveGame = jest.fn(() => {
+  mockMe = null;
+});
+
 // Mock useSocket hook
 jest.mock('../hooks/useSocket', () => ({
   useSocket: () => ({
@@ -29,6 +33,7 @@ jest.mock('../hooks/useSocket', () => ({
     timerRemaining: null,
     alertMessage: null,
     joinGame: mockJoinGame,
+    leaveGame: mockLeaveGame,
     buzz: jest.fn(),
     stealBuzz: jest.fn(),
     selectCard: jest.fn(),
@@ -38,8 +43,13 @@ jest.mock('../hooks/useSocket', () => ({
 }));
 
 describe('PlayerPage', () => {
+  beforeEach(() => {
+    mockMe = null;
+    localStorage.clear();
+  });
+
   it('renders the login screen and allows joining', () => {
-    render(<PlayerPage />);
+    const { rerender } = render(<PlayerPage />);
     expect(screen.getByText('BUZZER ARENA')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Nhập họ tên/i)).toBeInTheDocument();
 
@@ -50,8 +60,26 @@ describe('PlayerPage', () => {
     expect(button).not.toBeDisabled();
     fireEvent.click(button);
 
-    // After joining, renders header with score
+    expect(mockJoinGame).toHaveBeenCalledWith('Nguyen Van A');
+    expect(localStorage.getItem('mln_saved_name')).toBe('Nguyen Van A');
+
+    // Rerender after mockMe is set by join
+    rerender(<PlayerPage />);
     expect(screen.getByText('0')).toBeInTheDocument();
     expect(screen.getByText(/Đoán từ khóa ảnh gốc/i)).toBeInTheDocument();
   });
+
+  it('allows leaving game back to login screen', () => {
+    mockMe = { id: 's1', name: 'Nguyen Van A', score: 0, isFrozen: 0, hasCooldown: false, role: 'PLAYER', connected: true };
+    const { rerender } = render(<PlayerPage />);
+    expect(screen.getByText('Nguyen Van A')).toBeInTheDocument();
+
+    const leaveBtn = screen.getByTitle(/Đổi tên \/ Rời phòng/i);
+    fireEvent.click(leaveBtn);
+
+    expect(mockLeaveGame).toHaveBeenCalled();
+    rerender(<PlayerPage />);
+    expect(screen.getByText('BUZZER ARENA')).toBeInTheDocument();
+  });
 });
+

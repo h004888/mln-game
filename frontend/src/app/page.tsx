@@ -1,17 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSocket } from '../hooks/useSocket';
 import { GameState, PlayerRole } from '../types/game';
 import { BuzzerButton } from '../components/player/BuzzerButton';
 import { CardPickerModal } from '../components/player/CardPickerModal';
 import { AnswerButtons } from '../components/player/AnswerButtons';
 import { UltimateGuessModal } from '../components/player/UltimateGuessModal';
-import { Flame, Trophy, User, Zap, AlertCircle } from 'lucide-react';
+import { soundEffects } from '../utils/soundEffects';
+import { Flame, Trophy, User, Zap, AlertCircle, LogOut } from 'lucide-react';
 
 export default function PlayerPage() {
   const [playerName, setPlayerName] = useState('');
-  const [hasJoined, setHasJoined] = useState(false);
   const [isUltimateModalOpen, setIsUltimateModalOpen] = useState(false);
 
   const {
@@ -20,6 +20,7 @@ export default function PlayerPage() {
     timerRemaining,
     alertMessage,
     joinGame,
+    leaveGame,
     buzz,
     stealBuzz,
     selectCard,
@@ -27,15 +28,31 @@ export default function PlayerPage() {
     submitUltimateGuess,
   } = useSocket(PlayerRole.PLAYER, '');
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlName = params.get('name');
+      const savedName = localStorage.getItem('mln_saved_name');
+      const initial = urlName || savedName || '';
+      if (initial) {
+        setPlayerName(initial);
+      }
+    }
+  }, []);
+
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (playerName.trim()) {
-      joinGame(playerName.trim());
-      setHasJoined(true);
+    const trimmed = playerName.trim();
+    if (trimmed) {
+      soundEffects.unlockAudioContext(); // Unlock Web Audio API on mobile gesture
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mln_saved_name', trimmed);
+      }
+      joinGame(trimmed);
     }
   };
 
-  const isRegistered = hasJoined || !!me;
+  const isRegistered = !!me;
 
   // Screen 1: Name Input Screen
   if (!isRegistered) {
@@ -57,6 +74,8 @@ export default function PlayerPage() {
 
           <form onSubmit={handleJoin} className="space-y-4">
             <input
+              id="playerName"
+              name="playerName"
               type="text"
               required
               maxLength={20}
@@ -87,7 +106,7 @@ export default function PlayerPage() {
 
   return (
     <main className="min-h-screen flex flex-col justify-between p-4 max-w-lg mx-auto select-none">
-      {/* Top Header: Player Info & Score */}
+      {/* Top Header: Player Info & Score & Leave */}
       <header className="glass-panel p-3.5 rounded-2xl flex items-center justify-between border border-gray-800">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center font-bold text-white shadow">
@@ -102,12 +121,22 @@ export default function PlayerPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 bg-gray-900/90 px-3.5 py-1.5 rounded-xl border border-game-neonGold/40 shadow-inner">
-          <Trophy className="w-4 h-4 text-game-neonGold" />
-          <span className="text-base font-black text-game-neonGold font-mono">
-            {me?.score ?? 0}
-          </span>
-          <span className="text-[10px] text-gray-400">điểm</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-gray-900/90 px-3.5 py-1.5 rounded-xl border border-game-neonGold/40 shadow-inner">
+            <Trophy className="w-4 h-4 text-game-neonGold" />
+            <span className="text-base font-black text-game-neonGold font-mono">
+              {me?.score ?? 0}
+            </span>
+            <span className="text-[10px] text-gray-400">điểm</span>
+          </div>
+
+          <button
+            onClick={leaveGame}
+            title="Đổi tên / Rời phòng"
+            className="p-2 bg-gray-900/80 hover:bg-red-950/80 border border-gray-700 hover:border-red-500 rounded-xl text-gray-400 hover:text-red-300 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </header>
 

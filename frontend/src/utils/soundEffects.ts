@@ -19,6 +19,13 @@ class SoundEffectsManager {
   }
 
   /**
+   * Mở khóa AudioContext khi người dùng chạm vào màn hình (hỗ trợ mobile browser policy)
+   */
+  unlockAudioContext(): void {
+    this.getAudioContext();
+  }
+
+  /**
    * Tiếng chuông reng khi mở chuông hoặc ai đó bấm được chuông
    */
   playBuzzerClaim() {

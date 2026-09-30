@@ -4,7 +4,19 @@ import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { GameRoom, GameState, Player, PlayerRole } from '../types/game';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+export function getBackendUrl(): string {
+  if (typeof window !== 'undefined' && window.location) {
+    const { hostname, protocol } = window.location;
+    const configuredUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+    if (configuredUrl && !configuredUrl.includes('localhost')) {
+      return configuredUrl;
+    }
+    if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return `${protocol}//${hostname}:3001`;
+    }
+  }
+  return process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+}
 
 export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = '') {
   const socketRef = useRef<Socket | null>(null);
@@ -18,7 +30,8 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const socket = io(BACKEND_URL, {
+    const backendUrl = getBackendUrl();
+    const socket = io(backendUrl, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
     });
@@ -180,6 +193,21 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
     if (socketRef.current) socketRef.current.emit('host:reset_game');
   };
 
+  const leaveGame = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('mln_player_session');
+    }
+    setMe(null);
+    if (socketRef.current) {
+      if (typeof socketRef.current.disconnect === 'function') {
+        socketRef.current.disconnect();
+      }
+      if (typeof socketRef.current.connect === 'function') {
+        socketRef.current.connect();
+      }
+    }
+  };
+
   const createCustomGame = (config: any) => {
     if (socketRef.current) socketRef.current.emit('host:create_custom_game', config);
   };
@@ -195,6 +223,7 @@ export function useSocket(role: PlayerRole = PlayerRole.PLAYER, initialName = ''
     timerType,
     alertMessage,
     joinGame,
+    leaveGame,
     authenticateHost,
     buzz,
     stealBuzz,
